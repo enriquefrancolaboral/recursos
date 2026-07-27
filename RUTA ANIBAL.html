@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ruta Anibal Aquino</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    /* --- Estilos generales --- */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+
+    #topbar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      z-index: 1000;
+      background: #0b3d91;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      transition: background 0.25s ease;
+    }
+    #topbar.green {
+      background: #2e7d32;
+    }
+
+    #hamburger {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 48px;
+      width: 48px;
+      z-index: 1001;
+      background: none;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    #hamburger span {
+      display: block;
+      width: 24px;
+      height: 3px;
+      background: #ffffff;
+      border-radius: 2px;
+    }
+
+    #sidebar {
+      position: absolute;
+      top: 48px;
+      bottom: 0;
+      left: 0;
+      width: 150px;
+      z-index: 999;
+      background: #f2f2f2;
+      border-right: 1px solid #ccc;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(-150px);
+      transition: transform 0.25s ease;
+      overflow-y: auto;
+      padding-bottom: 10px;
+    }
+    #sidebar.open {
+      transform: translateX(0);
+    }
+
+    .sidebar-title {
+      font-weight: bold;
+      font-size: 14px;
+      text-align: center;
+      padding: 8px 0 4px 0;
+      background: #ddd;
+      color: #222;
+      border-bottom: 1px solid #bbb;
+      margin-top: 4px;
+    }
+    .sidebar-title:first-of-type {
+      margin-top: 0;
+    }
+
+    .day-btn {
+      border: none;
+      padding: 10px 10px;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+      color: #fff;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      transition: filter 0.1s;
+      background: #0b3d91;
+    }
+    .day-btn:hover {
+      filter: brightness(1.2);
+    }
+    .day-btn.active {
+      border: 3px solid #fff;
+      box-shadow: 0 0 8px rgba(0,0,0,0.4);
+    }
+    .day-btn.tipo-b {
+      background: #2e7d32;
+    }
+
+    #map {
+      position: absolute;
+      top: 48px;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      transition: left 0.25s ease;
+    }
+    #map.shifted {
+      left: 150px;
+    }
+
+    /* --- Estilos de los pines --- */
+    .pin-icon {
+      background: #d32f2f;
+      color: #fff;
+      border-radius: 50% 50% 50% 0;
+      width: 30px;
+      height: 30px;
+      transform: rotate(-45deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 3px rgba(0,0,0,0.5);
+      border: 2px solid #fff;
+    }
+    .pin-icon span {
+      transform: rotate(45deg);
+      font-weight: bold;
+      font-size: 13px;
+    }
+
+    /* --- Popups --- */
+    .popup-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .gmaps-link,
+    .gmaps-link:visited,
+    .gmaps-link:link {
+      display: inline-block;
+      background: #0b3d91 !important;
+      color: #ffffff !important;
+      padding: 6px 16px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .gmaps-link:hover,
+    .gmaps-link:active {
+      background: #092c6b !important;
+      color: #ffffff !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra superior -->
+  <div id="topbar">
+    <button id="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <span id="topbar-title"></span>
+  </div>
+
+  <!-- Menú lateral -->
+  <div id="sidebar"></div>
+
+  <!-- Mapa -->
+  <div id="map"></div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // ============================================================
+    //  1.  DATOS SEMANA "A" (10 puntos por día, inventados)
+    // ============================================================
+    const datosSemanaA = {
+      "Lunes": [
+        { "orden": 1, "ruc": "926964-9", "razon": "FERRETERIA SAN VICENTE", "direccion": "Villa Hayes", "lat": -25.0876099, "lon": -57.529311, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 2, "ruc": "4656604-0", "razon": "FERRETERIA RG", "direccion": "Avenida Remansito - Remansito", "lat": -25.16874807, "lon": -57.5709301, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 3, "ruc": "3955130-0", "razon": "COMERCIAL PAOLITA", "direccion": "Ruta 3 Elizardo Aquino casi Gral. Bernardino Caballero - MRA", "lat": -25.192318, "lon": -57.505055, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 4, "ruc": "1488725-8", "razon": "FERRETERIA DON CHIQUITO", "direccion": "Ruta Departamental D025 casi Rca. de Colombia - MRA", "lat": -25.193893, "lon": -57.534906, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 5, "ruc": "657793-8", "razon": "LORENZA CABALLERO DE ECHAURI", "direccion": "Uruguay - MRA", "lat": -25.1953161, "lon": -57.5438028, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 6, "ruc": "3253727-1", "razon": "FERRETERIA NANAWA", "direccion": "Nanawa casi R. Amarilla - MRA", "lat": -25.196794, "lon": -57.535235, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 7, "ruc": "597951-0", "razon": "AMBROSIO GODOY", "direccion": "Nanawa esq. R. Amarilla - Mariano R. Alonzo", "lat": -25.1969375, "lon": -57.5352489, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 8, "ruc": "695756-0", "razon": "Z COMERCIAL", "direccion": "Ruta Gral. Elizardo Aquino casi Estados Unidos - MRA", "lat": -25.199203, "lon": -57.51826, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 9, "ruc": "2432157-5", "razon": "OROITE MATERIALES", "direccion": "Ruta 3 Elizardo Aquino - MRA", "lat": -25.201794, "lon": -57.522298, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 10, "ruc": "4886584-2", "razon": "ANGEL MARTINEZ", "direccion": "MARIANO ROQUE ALONSO", "lat": -25.202957, "lon": -57.523703, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 11, "ruc": "4456266-7", "razon": "ROBERTO GABRIEL VAZQUEZ", "direccion": "Campo Via casi Rancho 8 - MRA", "lat": -25.2045988, "lon": -57.5372363, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 12, "ruc": "381019-4", "razon": "FERRETERIA LA CONCORDIA PEDRO GONZALEZ", "direccion": "Av. Gral Diaz - MRA", "lat": -25.2076766, "lon": -57.524501, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 13, "ruc": "4339331-4", "razon": "FERRETERIA LOS HERMANOS", "direccion": "Boqueron casi Campo Grande - MRA", "lat": -25.211365, "lon": -57.538429, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 14, "ruc": "1277705-6", "razon": "RAMON ARISTIDES GAVILAN PICO", "direccion": "Boquero casi Cañada Tarija - MRA", "lat": -25.2118358, "lon": -57.5361491, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 15, "ruc": "1709934-0", "razon": "TU FERRETERIA", "direccion": "Boqueron casi Ballivan - MRA", "lat": -25.2128328, "lon": -57.5325704, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 16, "ruc": "3956626-9", "razon": "OSCAR EDUARDO SANCHEZ ZAVALA", "direccion": "", "lat": -25.2142314, "lon": -57.5270797, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 17, "ruc": "1750283-7", "razon": "FERRETERIA A & A", "direccion": "Gral. Bernardino Caballero casi Capitao Aveiro - MRA", "lat": -25.21601, "lon": -57.517145, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 18, "ruc": "4085591-0", "razon": "FERRETEC", "direccion": "Ruta 3 Elizardo Aquino casi Cerro Cora - MRA", "lat": -25.216193, "lon": -57.530093, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 19, "ruc": "4858815-6", "razon": "DAVID BERNAL GALEANO", "direccion": "Sgto Trian entre Valois Rivarola y Cabo Talavera - MRA", "lat": -25.2169261, "lon": -57.5370845, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 20, "ruc": "3942571-1", "razon": "DEPOSITO DE MAT. DIVINO NInO JESUS", "direccion": "Gral. Bernardino Caballer - MRA", "lat": -25.2174293, "lon": -57.5191375, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 21, "ruc": "945592-2", "razon": "CESAR BLANCO", "direccion": "Ruta 3 casi Gral Santos - MRA", "lat": -25.2204745, "lon": -57.5317027, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 22, "ruc": "647432-2", "razon": "FERRETERIA 4AG", "direccion": "Gral. Bernardino Caballero casi Mauricio Jose Troche - MRA", "lat": -25.220916, "lon": -57.523976, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 23, "ruc": "3249016-0", "razon": "FERRETERIA HUMAITA", "direccion": "Av Gral. Eugenio Alejandrino Garay casi Cnel. Facetti- MRA", "lat": -25.221227, "lon": -57.550645, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 24, "ruc": "1723160-4", "razon": "FERRETERIA ARROCA", "direccion": "Mariano Roque Alonzo", "lat": -25.223728, "lon": -57.539402, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 25, "ruc": "3781949-6", "razon": "Ferreteria Santa Rita", "direccion": "Mariano Roque Alonso", "lat": -25.2258254, "lon": -57.5336446, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 26, "ruc": "4339839-1", "razon": "ELIANA PANIAGUA", "direccion": "Juana Maria de Lara - Mariano R. Alonzo", "lat": -25.2269118, "lon": -57.5215262, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 27, "ruc": "1001275-3", "razon": "FERRETERIA AUVITEL", "direccion": "Av Eusebio Ayala casi Natalicio Gonzalez - MRA", "lat": -25.228165, "lon": -57.55129, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 28, "ruc": "80119100-9", "razon": "VIRAZON S.A.", "direccion": "Soldado Robustiano Quintana y Del Maestro - MRA", "lat": -25.2326176, "lon": -57.5499381, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 29, "ruc": "1239380-0", "razon": "FERRETERIA LAS COLINAS", "direccion": "", "lat": -25.234666, "lon": -57.546725, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" },
+		{ "orden": 30, "ruc": "614320-2", "razon": "COMERCIAL DM&M", "direccion": "Sgto. 1ro. Tomas Lombardo casi Pascual Ramon Casco", "lat": -25.245534, "lon": -57.535501, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "A" }
+      ],
+      "Martes": [
+        { "orden": 1, "ruc": "112233-1", "razon": "FERRETERIA EL CONSTRUCTOR", "direccion": "Av. Boggiani 100 - Asunción", "lat": -25.2724, "lon": -57.6068, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 2, "ruc": "223344-2", "razon": "MATERIALES SANTA ROSA", "direccion": "Calle Cerro Cora 200 - Fernando de la Mora", "lat": -25.3211, "lon": -57.5982, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 3, "ruc": "334455-3", "razon": "COMERCIAL EL PILAR", "direccion": "Av. Rio de Janeiro 300 - San Lorenzo", "lat": -25.3445, "lon": -57.5359, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 4, "ruc": "445566-4", "razon": "FERRETERIA LA ESPERANZA", "direccion": "Calle Piribebuy 400 - Lambaré", "lat": -25.3352, "lon": -57.6314, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 5, "ruc": "556677-5", "razon": "DEPOSITO EL PROGRESO", "direccion": "Av. Choferes del Chaco 500 - Ñemby", "lat": -25.3768, "lon": -57.5427, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 6, "ruc": "667788-6", "razon": "FERRETERIA SAN MIGUEL", "direccion": "Calle Brasil 600 - Villa Elisa", "lat": -25.3624, "lon": -57.5599, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 7, "ruc": "778899-7", "razon": "BAZAR LA FAVORITA", "direccion": "Av. Sacramento 700 - Luque", "lat": -25.2689, "lon": -57.4954, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 8, "ruc": "889900-8", "razon": "MATERIALES SAN FRANCISCO", "direccion": "Calle Azara 800 - Capiatá", "lat": -25.3432, "lon": -57.4628, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 9, "ruc": "990011-9", "razon": "COMERCIAL LA NUEVA", "direccion": "Av. España 900 - Asunción", "lat": -25.2597, "lon": -57.5796, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" },
+        { "orden": 10, "ruc": "001122-0", "razon": "FERRETERIA EL SOL", "direccion": "Calle Palma 1000 - Fernando de la Mora", "lat": -25.3148, "lon": -57.5894, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "A" }
+      ],
+      "Miercoles": [
+        { "orden": 1, "ruc": "123123-1", "razon": "FERRETERIA RG", "direccion": "Av. Santísima Trinidad 110 - Asunción", "lat": -25.2857, "lon": -57.6542, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 2, "ruc": "234234-2", "razon": "MATERIALES EL TRIUNFO", "direccion": "Calle Colon 210 - Fernando de la Mora", "lat": -25.3284, "lon": -57.6147, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 3, "ruc": "345345-3", "razon": "COMERCIAL SAN ROQUE", "direccion": "Av. Eusebio Ayala 310 - San Lorenzo", "lat": -25.3517, "lon": -57.5156, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 4, "ruc": "456456-4", "razon": "FERRETERIA LA ECONOMICA", "direccion": "Calle Tacuary 410 - Lambaré", "lat": -25.3423, "lon": -57.6189, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 5, "ruc": "567567-5", "razon": "DEPOSITO SAN BLAS", "direccion": "Av. Kubitschek 510 - Ñemby", "lat": -25.3821, "lon": -57.5553, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 6, "ruc": "678678-6", "razon": "FERRETERIA SANTA CLARA", "direccion": "Calle Yegros 610 - Villa Elisa", "lat": -25.3556, "lon": -57.5724, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 7, "ruc": "789789-7", "razon": "BAZAR EL CONSTRUCTOR", "direccion": "Av. Mcal. López 710 - Luque", "lat": -25.2613, "lon": -57.4687, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 8, "ruc": "890890-8", "razon": "MATERIALES LA UNION", "direccion": "Calle Manduvira 810 - Capiatá", "lat": -25.3268, "lon": -57.4481, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 9, "ruc": "901901-9", "razon": "COMERCIAL EL PROGRESO", "direccion": "Av. Boggiani 910 - Asunción", "lat": -25.2695, "lon": -57.6103, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" },
+        { "orden": 10, "ruc": "012012-0", "razon": "FERRETERIA LA ESPERANZA", "direccion": "Calle Brasil 1010 - Fernando de la Mora", "lat": -25.3182, "lon": -57.6027, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "A" }
+      ],
+      "Jueves": [
+        { "orden": 1, "ruc": "321321-1", "razon": "FERRETERIA DON CHIQUITO", "direccion": "Av. Río de Janeiro 120 - Asunción", "lat": -25.2768, "lon": -57.6205, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 2, "ruc": "432432-2", "razon": "MATERIALES SANTA ANA", "direccion": "Calle Palma 220 - Fernando de la Mora", "lat": -25.3115, "lon": -57.5918, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 3, "ruc": "543543-3", "razon": "COMERCIAL LA CENTRAL", "direccion": "Av. Choferes del Chaco 320 - San Lorenzo", "lat": -25.3372, "lon": -57.5294, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 4, "ruc": "654654-4", "razon": "FERRETERIA EL PILAR", "direccion": "Calle Cerro Cora 420 - Lambaré", "lat": -25.3487, "lon": -57.6251, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 5, "ruc": "765765-5", "razon": "DEPOSITO LA FAVORITA", "direccion": "Av. España 520 - Ñemby", "lat": -25.3846, "lon": -57.5498, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 6, "ruc": "876876-6", "razon": "FERRETERIA SAN ROQUE", "direccion": "Calle Azara 620 - Villa Elisa", "lat": -25.3582, "lon": -57.5679, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 7, "ruc": "987987-7", "razon": "BAZAR LA ECONOMICA", "direccion": "Av. Kubitschek 720 - Luque", "lat": -25.2485, "lon": -57.4823, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 8, "ruc": "098098-8", "razon": "MATERIALES EL SOL", "direccion": "Calle Tacuary 820 - Capiatá", "lat": -25.3324, "lon": -57.4515, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 9, "ruc": "109109-9", "razon": "COMERCIAL SAN MIGUEL", "direccion": "Av. Mcal. López 920 - Asunción", "lat": -25.2821, "lon": -57.5973, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" },
+        { "orden": 10, "ruc": "210210-0", "razon": "FERRETERIA EL CONSTRUCTOR", "direccion": "Calle Manduvira 1020 - Fernando de la Mora", "lat": -25.3254, "lon": -57.6085, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "A" }
+      ],
+      "Viernes": [
+        { "orden": 1, "ruc": "111222-1", "razon": "FERRETERIA SAN VICENTE", "direccion": "Av. Eusebio Ayala 130 - Asunción", "lat": -25.2653, "lon": -57.6047, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 2, "ruc": "222333-2", "razon": "MATERIALES LA ESPERANZA", "direccion": "Calle Yegros 230 - Fernando de la Mora", "lat": -25.3196, "lon": -57.5945, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 3, "ruc": "333444-3", "razon": "COMERCIAL EL TRIUNFO", "direccion": "Av. Santísima Trinidad 330 - San Lorenzo", "lat": -25.3438, "lon": -57.5403, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 4, "ruc": "444555-4", "razon": "FERRETERIA SANTA ROSA", "direccion": "Calle Colon 430 - Lambaré", "lat": -25.3319, "lon": -57.6367, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 5, "ruc": "555666-5", "razon": "DEPOSITO EL PROGRESO", "direccion": "Av. Boggiani 530 - Ñemby", "lat": -25.3792, "lon": -57.5342, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 6, "ruc": "666777-6", "razon": "FERRETERIA LA UNION", "direccion": "Calle Brasil 630 - Villa Elisa", "lat": -25.3648, "lon": -57.5625, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 7, "ruc": "777888-7", "razon": "BAZAR SAN BLAS", "direccion": "Av. Sacramento 730 - Luque", "lat": -25.2551, "lon": -57.4887, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 8, "ruc": "888999-8", "razon": "MATERIALES EL PILAR", "direccion": "Calle Azara 830 - Capiatá", "lat": -25.3385, "lon": -57.4589, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 9, "ruc": "999000-9", "razon": "COMERCIAL LA FAVORITA", "direccion": "Av. España 930 - Asunción", "lat": -25.2584, "lon": -57.5812, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" },
+        { "orden": 10, "ruc": "000111-0", "razon": "FERRETERIA EL SOL", "direccion": "Calle Palma 1030 - Fernando de la Mora", "lat": -25.3126, "lon": -57.5928, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "A" }
+      ],
+      "Sabado": [
+        { "orden": 1, "ruc": "121212-1", "razon": "FERRETERIA RG", "direccion": "Av. Rio de Janeiro 140 - Asunción", "lat": -25.2832, "lon": -57.6159, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 2, "ruc": "232323-2", "razon": "MATERIALES SAN JOSÉ", "direccion": "Calle Tacuary 240 - Fernando de la Mora", "lat": -25.3143, "lon": -57.6012, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 3, "ruc": "343434-3", "razon": "COMERCIAL LA NUEVA", "direccion": "Av. Choferes del Chaco 340 - San Lorenzo", "lat": -25.3359, "lon": -57.5227, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 4, "ruc": "454545-4", "razon": "FERRETERIA EL PROGRESO", "direccion": "Calle Cerro Cora 440 - Lambaré", "lat": -25.3453, "lon": -57.6288, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 5, "ruc": "565656-5", "razon": "DEPOSITO LA UNION", "direccion": "Av. Mcal. López 540 - Ñemby", "lat": -25.3859, "lon": -57.5447, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 6, "ruc": "676767-6", "razon": "FERRETERIA SANTA ANA", "direccion": "Calle Yegros 640 - Villa Elisa", "lat": -25.3595, "lon": -57.5703, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 7, "ruc": "787878-7", "razon": "BAZAR EL CONSTRUCTOR", "direccion": "Av. Kubitschek 740 - Luque", "lat": -25.2518, "lon": -57.4756, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 8, "ruc": "898989-8", "razon": "MATERIALES SAN FRANCISCO", "direccion": "Calle Manduvira 840 - Capiatá", "lat": -25.3241, "lon": -57.4453, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 9, "ruc": "909090-9", "razon": "COMERCIAL LA ECONOMICA", "direccion": "Av. Santísima Trinidad 940 - Asunción", "lat": -25.2745, "lon": -57.6511, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" },
+        { "orden": 10, "ruc": "010101-0", "razon": "FERRETERIA SAN BLAS", "direccion": "Calle Brasil 1040 - Fernando de la Mora", "lat": -25.3207, "lon": -57.5964, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "A" }
+      ]
+    };
+
+    // ============================================================
+    //  2.  DATOS SEMANA "B" (10 puntos por día, inventados)
+    // ============================================================
+    const datosSemanaB = {
+      "Lunes": [
+        { "orden": 1, "ruc": "987654-1", "razon": "FERRETERIA EL PILAR B", "direccion": "Av. España 125 - Asunción", "lat": -25.2685, "lon": -57.5809, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 2, "ruc": "876543-2", "razon": "MATERIALES LA ESPERANZA B", "direccion": "Calle Palma 458 - Asunción", "lat": -25.2802, "lon": -57.5901, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 3, "ruc": "765432-3", "razon": "COMERCIAL EL SOL B", "direccion": "Av. Mcal. López 791 - Fernando de la Mora", "lat": -25.3187, "lon": -57.6089, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 4, "ruc": "654321-4", "razon": "FERRETERIA SAN ROQUE B", "direccion": "Calle Yegros 103 - San Lorenzo", "lat": -25.3425, "lon": -57.5174, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 5, "ruc": "543210-5", "razon": "DEPOSITO EL TRIUNFO B", "direccion": "Av. Eusebio Ayala 204 - Lambaré", "lat": -25.3548, "lon": -57.6352, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 6, "ruc": "432109-6", "razon": "FERRETERIA SANTA CLARA B", "direccion": "Calle Colon 305 - Ñemby", "lat": -25.3902, "lon": -57.5634, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 7, "ruc": "321098-7", "razon": "BAZAR LA FAVORITA B", "direccion": "Av. Kubitschek 406 - Villa Elisa", "lat": -25.3695, "lon": -57.5827, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 8, "ruc": "210987-8", "razon": "MATERIALES EL PROGRESO B", "direccion": "Calle Tacuary 507 - Luque", "lat": -25.2593, "lon": -57.4762, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 9, "ruc": "109876-9", "razon": "COMERCIAL LA UNION B", "direccion": "Av. Santísima Trinidad 608 - Capiatá", "lat": -25.3381, "lon": -57.4526, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" },
+        { "orden": 10, "ruc": "098765-0", "razon": "FERRETERIA SAN MIGUEL B", "direccion": "Calle Manduvira 709 - Asunción", "lat": -25.2946, "lon": -57.6149, "vendedor": "Anibal Aquino", "dia": "Lunes", "semana": "B" }
+      ],
+      "Martes": [
+        { "orden": 1, "ruc": "112244-1", "razon": "FERRETERIA EL CONSTRUCTOR B", "direccion": "Av. Boggiani 102 - Asunción", "lat": -25.2751, "lon": -57.6095, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 2, "ruc": "223355-2", "razon": "MATERIALES SANTA ROSA B", "direccion": "Calle Cerro Cora 202 - Fernando de la Mora", "lat": -25.3234, "lon": -57.5958, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 3, "ruc": "334466-3", "razon": "COMERCIAL EL PILAR B", "direccion": "Av. Rio de Janeiro 302 - San Lorenzo", "lat": -25.3472, "lon": -57.5332, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 4, "ruc": "445577-4", "razon": "FERRETERIA LA ESPERANZA B", "direccion": "Calle Piribebuy 402 - Lambaré", "lat": -25.3381, "lon": -57.6341, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 5, "ruc": "556688-5", "razon": "DEPOSITO EL PROGRESO B", "direccion": "Av. Choferes del Chaco 502 - Ñemby", "lat": -25.3792, "lon": -57.5404, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 6, "ruc": "667799-6", "razon": "FERRETERIA SAN MIGUEL B", "direccion": "Calle Brasil 602 - Villa Elisa", "lat": -25.3651, "lon": -57.5572, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 7, "ruc": "778800-7", "razon": "BAZAR LA FAVORITA B", "direccion": "Av. Sacramento 702 - Luque", "lat": -25.2712, "lon": -57.4931, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 8, "ruc": "889911-8", "razon": "MATERIALES SAN FRANCISCO B", "direccion": "Calle Azara 802 - Capiatá", "lat": -25.3463, "lon": -57.4602, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 9, "ruc": "990022-9", "razon": "COMERCIAL LA NUEVA B", "direccion": "Av. España 902 - Asunción", "lat": -25.2625, "lon": -57.5773, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" },
+        { "orden": 10, "ruc": "001133-0", "razon": "FERRETERIA EL SOL B", "direccion": "Calle Palma 1002 - Fernando de la Mora", "lat": -25.3175, "lon": -57.5868, "vendedor": "Anibal Aquino", "dia": "Martes", "semana": "B" }
+      ],
+      "Miercoles": [
+        { "orden": 1, "ruc": "123234-1", "razon": "FERRETERIA RG B", "direccion": "Av. Santísima Trinidad 112 - Asunción", "lat": -25.2884, "lon": -57.6518, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 2, "ruc": "234345-2", "razon": "MATERIALES EL TRIUNFO B", "direccion": "Calle Colon 212 - Fernando de la Mora", "lat": -25.3311, "lon": -57.6112, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 3, "ruc": "345456-3", "razon": "COMERCIAL SAN ROQUE B", "direccion": "Av. Eusebio Ayala 312 - San Lorenzo", "lat": -25.3544, "lon": -57.5131, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 4, "ruc": "456567-4", "razon": "FERRETERIA LA ECONOMICA B", "direccion": "Calle Tacuary 412 - Lambaré", "lat": -25.3452, "lon": -57.6158, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 5, "ruc": "567678-5", "razon": "DEPOSITO SAN BLAS B", "direccion": "Av. Kubitschek 512 - Ñemby", "lat": -25.3848, "lon": -57.5527, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 6, "ruc": "678789-6", "razon": "FERRETERIA SANTA CLARA B", "direccion": "Calle Yegros 612 - Villa Elisa", "lat": -25.3583, "lon": -57.5698, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 7, "ruc": "789890-7", "razon": "BAZAR EL CONSTRUCTOR B", "direccion": "Av. Mcal. López 712 - Luque", "lat": -25.2641, "lon": -57.4664, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 8, "ruc": "890901-8", "razon": "MATERIALES LA UNION B", "direccion": "Calle Manduvira 812 - Capiatá", "lat": -25.3295, "lon": -57.4455, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 9, "ruc": "901012-9", "razon": "COMERCIAL EL PROGRESO B", "direccion": "Av. Boggiani 912 - Asunción", "lat": -25.2722, "lon": -57.6078, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" },
+        { "orden": 10, "ruc": "012123-0", "razon": "FERRETERIA LA ESPERANZA B", "direccion": "Calle Brasil 1012 - Fernando de la Mora", "lat": -25.3209, "lon": -57.6001, "vendedor": "Anibal Aquino", "dia": "Miercoles", "semana": "B" }
+      ],
+      "Jueves": [
+        { "orden": 1, "ruc": "321432-1", "razon": "FERRETERIA DON CHIQUITO B", "direccion": "Av. Río de Janeiro 122 - Asunción", "lat": -25.2795, "lon": -57.6178, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 2, "ruc": "432543-2", "razon": "MATERIALES SANTA ANA B", "direccion": "Calle Palma 222 - Fernando de la Mora", "lat": -25.3142, "lon": -57.5892, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 3, "ruc": "543654-3", "razon": "COMERCIAL LA CENTRAL B", "direccion": "Av. Choferes del Chaco 322 - San Lorenzo", "lat": -25.3401, "lon": -57.5267, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 4, "ruc": "654765-4", "razon": "FERRETERIA EL PILAR B", "direccion": "Calle Cerro Cora 422 - Lambaré", "lat": -25.3516, "lon": -57.6224, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 5, "ruc": "765876-5", "razon": "DEPOSITO LA FAVORITA B", "direccion": "Av. España 522 - Ñemby", "lat": -25.3873, "lon": -57.5472, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 6, "ruc": "876987-6", "razon": "FERRETERIA SAN ROQUE B", "direccion": "Calle Azara 622 - Villa Elisa", "lat": -25.3611, "lon": -57.5653, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 7, "ruc": "987098-7", "razon": "BAZAR LA ECONOMICA B", "direccion": "Av. Kubitschek 722 - Luque", "lat": -25.2512, "lon": -57.4798, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 8, "ruc": "098109-8", "razon": "MATERIALES EL SOL B", "direccion": "Calle Tacuary 822 - Capiatá", "lat": -25.3351, "lon": -57.4489, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 9, "ruc": "109210-9", "razon": "COMERCIAL SAN MIGUEL B", "direccion": "Av. Mcal. López 922 - Asunción", "lat": -25.2848, "lon": -57.5947, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" },
+        { "orden": 10, "ruc": "210321-0", "razon": "FERRETERIA EL CONSTRUCTOR B", "direccion": "Calle Manduvira 1022 - Fernando de la Mora", "lat": -25.3281, "lon": -57.6059, "vendedor": "Anibal Aquino", "dia": "Jueves", "semana": "B" }
+      ],
+      "Viernes": [
+        { "orden": 1, "ruc": "111333-1", "razon": "FERRETERIA SAN VICENTE B", "direccion": "Av. Eusebio Ayala 132 - Asunción", "lat": -25.2681, "lon": -57.6021, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 2, "ruc": "222444-2", "razon": "MATERIALES LA ESPERANZA B", "direccion": "Calle Yegros 232 - Fernando de la Mora", "lat": -25.3223, "lon": -57.5919, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 3, "ruc": "333555-3", "razon": "COMERCIAL EL TRIUNFO B", "direccion": "Av. Santísima Trinidad 332 - San Lorenzo", "lat": -25.3467, "lon": -57.5376, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 4, "ruc": "444666-4", "razon": "FERRETERIA SANTA ROSA B", "direccion": "Calle Colon 432 - Lambaré", "lat": -25.3348, "lon": -57.6339, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 5, "ruc": "555777-5", "razon": "DEPOSITO EL PROGRESO B", "direccion": "Av. Boggiani 532 - Ñemby", "lat": -25.3819, "lon": -57.5316, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 6, "ruc": "666888-6", "razon": "FERRETERIA LA UNION B", "direccion": "Calle Brasil 632 - Villa Elisa", "lat": -25.3675, "lon": -57.5599, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 7, "ruc": "777999-7", "razon": "BAZAR SAN BLAS B", "direccion": "Av. Sacramento 732 - Luque", "lat": -25.2578, "lon": -57.4861, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 8, "ruc": "888000-8", "razon": "MATERIALES EL PILAR B", "direccion": "Calle Azara 832 - Capiatá", "lat": -25.3412, "lon": -57.4563, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 9, "ruc": "999111-9", "razon": "COMERCIAL LA FAVORITA B", "direccion": "Av. España 932 - Asunción", "lat": -25.2612, "lon": -57.5786, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" },
+        { "orden": 10, "ruc": "000222-0", "razon": "FERRETERIA EL SOL B", "direccion": "Calle Palma 1032 - Fernando de la Mora", "lat": -25.3153, "lon": -57.5902, "vendedor": "Anibal Aquino", "dia": "Viernes", "semana": "B" }
+      ],
+      "Sabado": [
+        { "orden": 1, "ruc": "121313-1", "razon": "FERRETERIA RG B", "direccion": "Av. Rio de Janeiro 142 - Asunción", "lat": -25.2859, "lon": -57.6132, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 2, "ruc": "232424-2", "razon": "MATERIALES SAN JOSÉ B", "direccion": "Calle Tacuary 242 - Fernando de la Mora", "lat": -25.3171, "lon": -57.5986, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 3, "ruc": "343535-3", "razon": "COMERCIAL LA NUEVA B", "direccion": "Av. Choferes del Chaco 342 - San Lorenzo", "lat": -25.3388, "lon": -57.5201, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 4, "ruc": "454646-4", "razon": "FERRETERIA EL PROGRESO B", "direccion": "Calle Cerro Cora 442 - Lambaré", "lat": -25.3482, "lon": -57.6261, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 5, "ruc": "565757-5", "razon": "DEPOSITO LA UNION B", "direccion": "Av. Mcal. López 542 - Ñemby", "lat": -25.3885, "lon": -57.5421, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 6, "ruc": "676868-6", "razon": "FERRETERIA SANTA ANA B", "direccion": "Calle Yegros 642 - Villa Elisa", "lat": -25.3623, "lon": -57.5677, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 7, "ruc": "787979-7", "razon": "BAZAR EL CONSTRUCTOR B", "direccion": "Av. Kubitschek 742 - Luque", "lat": -25.2546, "lon": -57.4731, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 8, "ruc": "898080-8", "razon": "MATERIALES SAN FRANCISCO B", "direccion": "Calle Manduvira 842 - Capiatá", "lat": -25.3268, "lon": -57.4427, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 9, "ruc": "909191-9", "razon": "COMERCIAL LA ECONOMICA B", "direccion": "Av. Santísima Trinidad 942 - Asunción", "lat": -25.2772, "lon": -57.6485, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" },
+        { "orden": 10, "ruc": "010202-0", "razon": "FERRETERIA SAN BLAS B", "direccion": "Calle Brasil 1042 - Fernando de la Mora", "lat": -25.3235, "lon": -57.5938, "vendedor": "Anibal Aquino", "dia": "Sabado", "semana": "B" }
+      ]
+    };
+
+    // ============================================================
+    //  3.  CONFIGURACIÓN DE LA INTERFAZ
+    // ============================================================
+    const dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado"];
+    const sidebar = document.getElementById('sidebar');
+    const mapDiv = document.getElementById('map');
+    const hamburger = document.getElementById('hamburger');
+    const topbar = document.getElementById('topbar');
+    const topbarTitle = document.getElementById('topbar-title');
+
+    // --- Abrir / cerrar menú ---
+    hamburger.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      mapDiv.classList.toggle('shifted');
+      setTimeout(() => map.invalidateSize(), 260);
+    });
+
+    // --- Función para cerrar el menú ---
+    function cerrarMenu() {
+      sidebar.classList.remove('open');
+      mapDiv.classList.remove('shifted');
+      setTimeout(() => map.invalidateSize(), 260);
+    }
+
+    // --- Construir el menú lateral agrupado ---
+    function construirMenu() {
+      sidebar.innerHTML = '';
+
+      // Grupo A
+      const tituloA = document.createElement('div');
+      tituloA.className = 'sidebar-title';
+      tituloA.textContent = '▶ SEMANA A';
+      sidebar.appendChild(tituloA);
+
+      dias.forEach(dia => {
+        const btn = document.createElement('button');
+        btn.className = 'day-btn tipo-a';
+        btn.textContent = `${dia} A`;
+        btn.dataset.dia = dia;
+        btn.dataset.tipo = 'A';
+        btn.addEventListener('click', () => {
+          seleccionarDia(dia, 'A');
+          cerrarMenu();
+        });
+        sidebar.appendChild(btn);
+      });
+
+      // Grupo B
+      const tituloB = document.createElement('div');
+      tituloB.className = 'sidebar-title';
+      tituloB.textContent = '▶ SEMANA B';
+      sidebar.appendChild(tituloB);
+
+      dias.forEach(dia => {
+        const btn = document.createElement('button');
+        btn.className = 'day-btn tipo-b';
+        btn.textContent = `${dia} B`;
+        btn.dataset.dia = dia;
+        btn.dataset.tipo = 'B';
+        btn.addEventListener('click', () => {
+          seleccionarDia(dia, 'B');
+          cerrarMenu();
+        });
+        sidebar.appendChild(btn);
+      });
+    }
+    construirMenu();
+
+    // --- Mapa ---
+    const map = L.map('map');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    let capaActual = null;
+
+    // --- Función de selección ---
+    function seleccionarDia(dia, tipo, cerrar = true) {
+      // Resaltar botón activo
+      document.querySelectorAll('.day-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.dia === dia && b.dataset.tipo === tipo);
+      });
+
+      // Cambiar título y color de la barra superior
+      topbarTitle.textContent = `${dia.toUpperCase()} ${tipo}`;
+      if (tipo === 'A') {
+        topbar.classList.remove('green');
+      } else {
+        topbar.classList.add('green');
+      }
+
+      // Cargar datos
+      if (capaActual) map.removeLayer(capaActual);
+      capaActual = L.layerGroup().addTo(map);
+
+      const datos = tipo === 'A' ? datosSemanaA[dia] : datosSemanaB[dia];
+      const bounds = [];
+      datos.forEach(p => {
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="pin-icon"><span>${p.orden}</span></div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 30]
+        });
+        const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lon}`;
+        const marker = L.marker([p.lat, p.lon], { icon });
+        marker.bindPopup(
+          `<div class="popup-title">${p.orden}. ${p.razon}</div>` +
+          `<div><strong>DocNum:</strong> ${p.ruc}</div>` +
+          `<div><strong>Direccion:</strong> ${p.direccion}</div>` +
+          `<div><strong>Vendedor:</strong> ${p.vendedor || '—'}</div>` +
+          `<div><strong>Día:</strong> ${p.dia || '—'}</div>` +
+          `<div><strong>Semana:</strong> ${p.semana || '—'}</div>` +
+          `<div style="text-align:center; margin-top:8px;">` +
+            `<a class="gmaps-link" href="${gmapsUrl}" target="_blank" style="display:inline-block; padding:6px 16px;">Abrir en Google Maps</a>` +
+          `</div>`
+        );
+        marker.addTo(capaActual);
+        bounds.push([p.lat, p.lon]);
+      });
+      map.fitBounds(bounds, { padding: [30, 30] });
+
+      // Si el parámetro 'cerrar' es true, ocultar el menú
+      if (cerrar) {
+        cerrarMenu();
+      }
+    }
+
+    // --- Abrir menú por defecto ---
+    sidebar.classList.add('open');
+    mapDiv.classList.add('shifted');
+
+    // --- Selección inicial: Lunes A (sin cerrar el menú) ---
+    seleccionarDia('Lunes', 'A', false);
+  </script>
+</body>
+</html>
